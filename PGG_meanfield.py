@@ -7,6 +7,7 @@ Created on Wed Feb  6 12:42:12 2019
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 class player(object):
     def __init__(self,strategy=None):
@@ -28,6 +29,11 @@ class player(object):
     @property
     def strategy(self):
         return self.__strategy
+    
+    @strategy.setter
+    def strategy(self,value):
+        assert value in [0,1,2]
+        self.__strategy = value
     
     @property
     def payoff(self):
@@ -57,49 +63,148 @@ class meanFieldModel(object):
         """
         play one time the public goods game
         
-        :param nparticipants: the number of players that participate in one game
-        :param cost: the cost of playing the public goods game for the cooperator
-        :param r: the facor with which the pot of costs is multiplied
-        :param sigma: the payoff for the loner
+        :param nparticipants: The number of players that are chosen randomely from all players and 
+        given the opportunity to particpate in the public 
+        goods game (note:loners do not play the public goods game!).
+        
+        :param cost: The cost of playing the public goods game for the cooperator
+        
+        :param r: The facor with which the pot of costs is multiplied
+        
+        :param sigma: The payoff for the loner
         
         """
-        assert (1<r and r<nparticipants)
-        assert (0<sigma and sigma<r-1 )
+        # check if r and sigma are chosen correctly 
+        assert (1 < r and r < nparticipants)
+        assert (0 < sigma and sigma < r-1 )
         
+        # set game properties
         self.c = c
         self.r = r
         self.sigma = sigma
         
+        # choose randomely players
         random_player_indeces =  np.random.choice(self.nplayers, nparticipants, replace=False)
         
+        # count the cooperators and defectors
         nc = 0
-        
+        nd = 0
         for i in random_player_indeces:
             if self.players[i].strategy == 0:
                 nc +=1
+            elif self.players[i].strategy == 1:
+                nd +=1
         
+        # assign payoffs
         for i in random_player_indeces:
-            self.assignPayoff(self.players[i], nc, nparticipants)
+            self.__assignPayoff(self.players[i], nc, nd)
         
         
-    def assignPayoff(self,player_instance, ncooperators, nparticpants):
+    def __assignPayoff(self,player_instance, ncooperators, ndefectors):
+        """
+        assign a payoff o one player of a public goods game 
+        
+        :param player_instance: a instance of the player class
+        :ncooperators: number of cooperators in the public goods game
+        :nparticipants: number of participants in the public goods game
+        """
         
         assert isinstance(player_instance,player)
         
+        # assign payoff depending on the strategy played by the player
         if player_instance.strategy == 0:
-            player_instance.payoff += - self. c + self.r * self.c * ncooperators/nparticpants
+            player_instance.payoff += - self. c + self.r * self.c * ncooperators/(ncooperators + ndefectors)
         
-        if player_instance.strategy == 1:
-            player_instance.payoff += self.r * self.c * ncooperators/nparticpants
+        elif player_instance.strategy == 1:
+            player_instance.payoff += self.r * self.c * ncooperators/(ncooperators + ndefectors)
         
-        if player_instance.strategy == 2:
+        elif player_instance.strategy == 2:
             player_instance.payoff += self.sigma
             
+    
+    def reviseStragey(self,player_index,tau=0.1,K=0.01):
+        """
+        revision protocol for player1 to change his strategy to the strategy of player2
+        
+        :param player1,player2: instance of class player
+        """
+        # choose a randomely players
+        random_player_index =  np.random.choice(self.nplayers)
+        
+        payoff1 = self.players[player_index].payoff
+        payoff2 = self.players[random_player_index].payoff
+
+        self.tau = tau
+        self.K = K
+        
+        p = self.__revisionProtocol(payoff1,payoff2)
+        
+        change = np.random.choice([False,True],p=[1-p,p])
+        
+        if change:
+            self.players[player_index].strategy = self.players[random_player_index].strategy
+    
+    def __revisionProtocol(self,payoff1,payoff2):
+        
+        change_likelihood = 1/(1+np.exp(payoff1 - payoff2 + self.tau)/self.K)
+        
+        return change_likelihood
+    
+    def clearPayoffs(self):
+        for i in range(self.nplayers):
+            self.players[i].payoff = 0
+            
+    def countStrategies(self):
+        nc = 0
+        nd = 0
+        
+        for i in range(self.nplayers):
+            if self.players[i].strategy == 0:
+                nc+=1
+            elif self.players[i].strategy == 1:
+                nd+=1
+        nl = self.nplayers - nc - nd
+        
+        return nc,nd,nl
+        
 if __name__ == "__main__":
     
-    mfm = meanFieldModel(10)
-    for i in range(1000):
-        mfm.playGame(5,1.,4.,1.)
+    # total number of players
+    nplayers = 1000
     
+    # rounds each player (approximately) plays
+    rounds = 100
+    
+    # Public goods game settings 
+    # number of players that is offered to play PGG
+    nparticipants = 5 
+    
+    # cost of participating
+    c = 1.
+    
+    # multipliaction factor for the pot
+    r = 3.
+    
+    # loners payoff
+    sigma = 1.
+    
+    stragies = np.zeros(shape=(rounds,3))
+    
+    mfm = meanFieldModel(nplayers)
+    
+    for j in range(rounds):
+        
+        for i in range(nplayers):
+            mfm.playGame(nparticipants,c,r,sigma)
+        
+        for i in range(nplayers):
+            mfm.reviseStragey(i)
+        
+        mfm.clearPayoffs()
+    
+        stragies[j,:] = mfm.countStrategies()
+        
+    plt.plot(np.arange(rounds),stragies)
+
     
     
