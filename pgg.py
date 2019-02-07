@@ -7,9 +7,6 @@ Created on Wed Feb  6 12:42:12 2019
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-from matplotlib.colors import ListedColormap
 
 class player(object):
     def __init__(self,strategy=None):
