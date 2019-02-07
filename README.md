@@ -1,5 +1,5 @@
 # Public goods game
-This repository contains code for a public goods game between cooperator and defectors (optional: loners) played by a random sampling of players. Later, I will incooporate a lattice model.
+This repository contains a modlue code for a public goods game (PGG) between cooperator and defectors (optional: loners). The PGG is either played with other randomely picked players from the set of all players (bucketModel) or when players are spatially aranged on a grid with players from their 3x3 neighborhood (latticeModel). Players can update their strategy using a probabilistic revision protocol by looking at a random player in the bucket or in the neighborhood, respectively.
 
 # Literature
 Hauert, C., De Monte, S., Hofbauer, J., and Sigmund, K. (2002a). Replicator
