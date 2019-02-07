@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 class player(object):
     def __init__(self,strategy=None):
         """
-        The person object holds all variables that belong to one person. 
+        The player class holds all variables that belong to one person. 
         Namely the current strategy and the last payoff.
         
         :type strategy: int
@@ -23,6 +23,8 @@ class player(object):
         
         if strategy==None:
             self.__strategy = np.random.randint(0,3)
+        else:
+            self.__strategy = strategy
         
         self.__payoff = 0.
         
@@ -43,22 +45,40 @@ class player(object):
     def payoff(self,value):
         self.__payoff = value
     
-class meanFieldModel(object):
-    def __init__(self,nplayers):
+class bucketModel(object):
+    def __init__(self,nplayers,inital_distribution=None):
         """
-        The mean field object holds the variables that define a public goods game in
+        The bucket model class holds the variables that define a public goods game in
         a mean field and the methods to play the public goods game
+        
+        :param nplayers: number of total players
+        :param inital_distribution: The initial distribution of players [cooperators,defectors,loners]
         """
         self.nplayers = nplayers
-        self.initGame()
+        self.__initGame(inital_distribution)
         
     @property
     def players(self):
         return self.__players
         
-    def initGame(self):
-        self.__players = [player() for i in range(self.nplayers)]
-    
+    def __initGame(self,inital_distribution):
+        """
+        initialize strategies with a equal propability for each strategy when inital_distribution is None. 
+        Or using the initial distribution.
+        """
+        if inital_distribution == None:
+            self.__players = [player() for i in range(self.nplayers)]
+        else:
+            assert sum(inital_distribution) == 1.
+            
+            pc = inital_distribution[0]
+            pd = inital_distribution[1]
+            pl = inital_distribution[2]
+            
+            strategies = np.random.choice([0,1,2],size=self.nplayers,replace=True,p=[pc,pd,pl])
+            
+            self.__players = [player(strategies[i]) for i in range(self.nplayers)]
+        
     def playGame(self,nparticipants,c,r,sigma):
         """
         play one time the public goods game
@@ -122,7 +142,7 @@ class meanFieldModel(object):
             player_instance.payoff += self.sigma
             
     
-    def reviseStragey(self,player_index,tau=0.1,K=0.01):
+    def reviseStragey(self,player_index,tau=0.1,K=0.1):
         """
         revision protocol for player1 to change his strategy to the strategy of player2
         
@@ -170,7 +190,7 @@ class meanFieldModel(object):
 if __name__ == "__main__":
     
     # total number of players
-    nplayers = 1000
+    nplayers = 300
     
     # rounds each player (approximately) plays
     rounds = 100
@@ -188,23 +208,24 @@ if __name__ == "__main__":
     # loners payoff
     sigma = 1.
     
-    stragies = np.zeros(shape=(rounds,3))
+    strategies = np.zeros(shape=(rounds,3))
     
-    mfm = meanFieldModel(nplayers)
+    bm = bucketModel(nplayers,inital_distribution=[0.4,0.1,0.5])
     
     for j in range(rounds):
         
-        for i in range(nplayers):
-            mfm.playGame(nparticipants,c,r,sigma)
+        for i in range(int(nplayers/nparticipants)):
+            bm.playGame(nparticipants,c,r,sigma)
         
         for i in range(nplayers):
-            mfm.reviseStragey(i)
+            bm.reviseStragey(i)
         
-        mfm.clearPayoffs()
+        bm.clearPayoffs()
     
-        stragies[j,:] = mfm.countStrategies()
-        
-    plt.plot(np.arange(rounds),stragies)
+        strategies[j,:] = bm.countStrategies()
+    
+    plt.close("all")
+    plt.plot(np.arange(rounds),strategies)
 
     
     
